@@ -5,7 +5,6 @@
 #include <locale.h>
 #include <queue>
 
-
 typedef struct Node {
     int vertex;
     struct Node* next;
@@ -62,7 +61,6 @@ void freeAdjList(Node** adjList, int n) {
     free(adjList);
 }
 
-
 typedef struct QueueNode {
     int data;
     struct QueueNode* next;
@@ -118,7 +116,6 @@ void clearQueue(MyQueue* q) {
     }
 }
 
-
 int** create_matrix(int n) {
     int** matrix = (int**)malloc(n * sizeof(int*));
     if (!matrix) return NULL;
@@ -159,7 +156,6 @@ void print_matrix(int** matrix, int n) {
             printf("%3d", matrix[i][j]);
         }
 
-
         printf("\n");
     }
     printf("\n");
@@ -176,7 +172,6 @@ void reset_num(int* NUM, int n) {
     for (int i = 0; i < n; i++) NUM[i] = 0;
 }
 
-
 void BFS_matrix_std(int start_v, int n, int** matrix, int* NUM, int print_output) {
     std::queue<int> q;
     q.push(start_v);
@@ -186,6 +181,7 @@ void BFS_matrix_std(int start_v, int n, int** matrix, int* NUM, int print_output
         int v = q.front();
         q.pop();
         if (print_output) printf("%d ", v + 1);
+
 
         for (int i = 0; i < n; i++) {
             if (matrix[v][i] == 1 && NUM[i] == 0) {
@@ -238,6 +234,28 @@ void BFS_list_std(int start_v, Node** adjList, int* NUM, int print_output) {
     }
 }
 
+void BFS_list_myqueue(int start_v, Node** adjList, int* NUM, int print_output) {
+    MyQueue q;
+    initQueue(&q);
+
+    pushQueue(&q, start_v);
+    NUM[start_v] = 1;
+
+    while (!isEmpty(&q)) {
+        int v = popQueue(&q);
+        if (print_output) printf("%d ", v + 1);
+
+        Node* curr = adjList[v];
+        while (curr != NULL) {
+            int neighbor = curr->vertex;
+            if (NUM[neighbor] == 0) {
+                pushQueue(&q, neighbor);
+                NUM[neighbor] = 1;
+            }
+            curr = curr->next;
+        }
+    }
+}
 
 int main() {
     setlocale(LC_ALL, "Russian");
@@ -267,9 +285,9 @@ int main() {
         printf("4. Сравнение времени std::queue vs MyQueue (Задание 2* п.2)\n");
         printf("5. Выбрать стартовую вершину для обхода\n");
 
-
         printf("6. Сгенерировать новый граф\n");
         printf("7. Показать граф (матрицу и списки)\n");
+        printf("8. BFS по спискам смежности на СВОЕЙ очереди\n");
         printf("0. Выход\n");
         printf("Выберите пункт: ");
 
@@ -302,6 +320,8 @@ int main() {
             for (int i = 0; i < n; i++) {
                 if (NUM[i] == 0) BFS_list_std(i, adjList, NUM, 1);
             }
+
+
             clock_t t_end = clock();
             double time_ms = (double)(t_end - t_start) * 1000.0 / CLOCKS_PER_SEC;
             printf("\n[Время работы]: %.4f мс\n\n", time_ms);
@@ -336,6 +356,8 @@ int main() {
             int* test_num = (int*)malloc(test_n * sizeof(int));
             generate_graph(test_mat, test_n);
 
+            Node** test_adjList = matrixToAdjList(test_mat, test_n);
+
             reset_num(test_num, test_n);
             clock_t s1 = clock();
             for (int i = 0; i < test_n; i++) {
@@ -352,12 +374,27 @@ int main() {
             clock_t e2 = clock();
             double t2 = (double)(e2 - s2) * 1000.0 / CLOCKS_PER_SEC;
 
+            reset_num(test_num, test_n);
+            clock_t s3 = clock();
+            for (int i = 0; i < test_n; i++) if (test_num[i] == 0) BFS_list_std(i, test_adjList, test_num, 0);
+            clock_t e3 = clock();
+            double t3 = (double)(e3 - s3) * 1000.0 / CLOCKS_PER_SEC;
+
+            reset_num(test_num, test_n);
+            clock_t s4 = clock();
+            for (int i = 0; i < test_n; i++) if (test_num[i] == 0) BFS_list_myqueue(i, test_adjList, test_num, 0);
+            clock_t e4 = clock();
+            double t4 = (double)(e4 - s4) * 1000.0 / CLOCKS_PER_SEC;
+
             printf("Результаты на графе N = %d:\n", test_n);
-            printf("1. Стандартный std::queue : %.3f мс\n", t1);
-            printf("2. Собственная MyQueue    : %.3f мс\n", t2);
+            printf("1. Матрица Стандартный std::queue : %.3f мс\n", t1);
+            printf("2. Матрица Собственная MyQueue    : %.3f мс\n", t2);
+            printf("3. Списки Стандартный std::queue : %.3f мс\n", t3);
+            printf("4. Списки Собственная MyQueue    : %.3f мс\n", t4);
             printf("========================================================\n\n");
 
             free_matrix(test_mat, test_n);
+            freeAdjList(test_adjList, test_n);
             free(test_num);
             break;
         }
@@ -370,7 +407,6 @@ int main() {
                 printf("Стартовая вершина установлена на: %d\n\n", start_node + 1);
             }
             else {
-
 
                 printf("Некорректный номер! Оставлена прежняя вершина.\n\n");
             }
@@ -391,9 +427,28 @@ int main() {
             printf("\nВыход из программы. До свидания!\n");
             break;
 
+
         default:
             printf("\nНеверный пункт меню!\n\n");
             break;
+
+        case 8: {
+            reset_num(NUM, n);
+            Node** adjList = matrixToAdjList(matrix, n);
+            printf("\n[BFS списки смежности на своей очереди]: ");
+            clock_t t_start = clock();
+
+            BFS_matrix_myqueue(start_node, n, matrix, NUM, 1);
+            for (int i = 0; i < n; i++) {
+                if (NUM[i] == 0) BFS_matrix_myqueue(i, n, matrix, NUM, 1);
+            }
+            clock_t t_end = clock();
+            double time_ms = (double)(t_end - t_start) * 1000.0 / CLOCKS_PER_SEC;
+            printf("\n[Время работы]: %.4f мс\n\n", time_ms);
+
+            freeAdjList(adjList, n);
+            break;
+        }
         }
     }
 
@@ -401,7 +456,3 @@ int main() {
     free(NUM);
     return 0;
 }
-
-
-
-
